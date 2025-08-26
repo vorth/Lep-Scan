@@ -79,6 +79,13 @@ struct ContentView: View {
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: results, options: .prettyPrinted)
                     jsonOutput = String(data: jsonData, encoding: .utf8) ?? "Error formatting JSON"
+                    
+                    // Save JSON to predetermined file
+                    saveJSONToFile(jsonData)
+                    
+                    // Call predetermined bash script
+                    callBashScript()
+                    
                 } catch {
                     jsonOutput = "Error: \(error.localizedDescription)"
                 }
@@ -86,7 +93,40 @@ struct ContentView: View {
             }
         }
     }
+  
+  private func saveJSONToFile(_ jsonData: Data) {
     
+    // Use the actual user's Documents folder, not sandboxed
+    let homeDirectory = FileManager.default.homeDirectoryForCurrentUser
+    let documentsPath = homeDirectory.appendingPathComponent("Documents")
+    let filePath = documentsPath.appendingPathComponent("photo_metadata.json")
+      
+      do {
+          try jsonData.write(to: filePath)
+          print("JSON saved to: \(filePath.path)")
+      } catch {
+          print("Failed to save JSON: \(error)")
+      }
+  }
+  
+  private func callBashScript() {
+    // Use the actual user's Documents folder
+    let homeDirectory = FileManager.default.homeDirectoryForCurrentUser
+    let documentsPath = homeDirectory.appendingPathComponent("Documents")
+    let scriptPath = documentsPath.appendingPathComponent("process_photos.sh")
+
+      let process = Process()
+      process.executableURL = URL(fileURLWithPath: "/bin/bash")
+      process.arguments = [scriptPath.path]
+      
+      do {
+          try process.run()
+          print("Bash script executed: \(scriptPath.path)")
+      } catch {
+          print("Failed to execute bash script: \(error)")
+      }
+  }
+
     private func extractMetadata(from imageData: Data) async -> [String: Any] {
         var result: [String: Any] = [:]
         
@@ -139,7 +179,7 @@ struct ContentView: View {
                 continuation.resume(returning: qrCodes)
             }
             
-            request.symbologies = [.qr]
+            request.symbologies = [.QR]
             
             let handler = VNImageRequestHandler(ciImage: image, options: [:])
             DispatchQueue.global(qos: .userInitiated).async {
